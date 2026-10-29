@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Conversor média e SD</title>
+<style>
+:root{
+  --bg:#f5f6f4; --surface:#ffffff; --text:#1d2421; --muted:#5d6762; --line:#d3d9d5;
+  --accent:#1f6f5c; --accent-text:#ffffff; --warn:#a4491b;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#14181a; --surface:#1d2326; --text:#e6ebe8; --muted:#97a39d; --line:#34403b;
+    --accent:#4fb99c; --accent-text:#0b1512; --warn:#e29a6d;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#14181a; --surface:#1d2326; --text:#e6ebe8; --muted:#97a39d; --line:#34403b;
+  --accent:#4fb99c; --accent-text:#0b1512; --warn:#e29a6d;
+}
+html{color-scheme:light dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,Roboto,sans-serif;line-height:1.5}
+main{max-width:860px;margin:0 auto;padding:28px 18px 48px}
+h1{font-size:1.5rem;margin:0 0 4px}
+p.lead{margin:0 0 22px;color:var(--muted);max-width:62ch}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:700px){.grid{grid-template-columns:1fr}}
+label{display:block;font-weight:600;margin-bottom:6px}
+textarea{width:100%;height:340px;resize:vertical;padding:12px;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface);color:var(--text);font:0.9rem/1.45 ui-monospace,Consolas,"Courier New",monospace;white-space:pre;overflow:auto}
+textarea:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+button{font:inherit;font-weight:600;padding:9px 16px;border-radius:8px;border:1px solid var(--line);
+  background:var(--surface);color:var(--text);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
+#msg{color:var(--muted);font-size:.92rem}
+#msg.warn{color:var(--warn)}
+.hint{margin-top:22px;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Conversor média e SD</h1>
+  <p class="lead">Cole as linhas no formato original (tempo; valor; id; média ou sd). A saída traz tempo, média e SD, com SD = valor “sd” − valor “média”.</p>
+
+  <div class="grid">
+    <div>
+      <label for="entrada">Entrada</label>
+      <textarea id="entrada" spellcheck="false" placeholder="0,05; 1056,87; 0,00; media&#10;0,05; 1056,87; 0,00; sd&#10;0,12; 486,34; 1,00; media&#10;0,12; 563,57; 1,00; sd"></textarea>
+    </div>
+    <div>
+      <label for="saida">Saída (CSV)</label>
+      <textarea id="saida" spellcheck="false" readonly></textarea>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="primary" id="converter" type="button">Converter</button>
+    <button id="copiar" type="button">Copiar saída</button>
+    <button id="limpar" type="button">Limpar</button>
+    <span id="msg" role="status"></span>
+  </div>
+
+  <p class="hint">O tempo usado é o da linha “média”. A conversão acontece também enquanto você cola ou digita. Aceita vírgula ou ponto como decimal.</p>
+</main>
+
+<script>
+(function(){
+  var ent = document.getElementById('entrada');
+  var sai = document.getElementById('saida');
+  var msg = document.getElementById('msg');
+
+  function num(s){
+    var n = parseFloat(String(s).trim().replace(/\s/g,'').replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+  function fmt(n){ return n.toFixed(2).replace('.', ','); }
+  function norm(s){
+    return String(s).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  }
+  function setMsg(t, warn){ msg.textContent = t; msg.className = warn ? 'warn' : ''; }
+
+  function converter(){
+    var linhas = ent.value.split(/\r?\n/);
+    var grupos = {}, ordem = [], ignoradas = 0;
+
+    linhas.forEach(function(l){
+      if(!l.trim()) return;
+      var p = l.split(';');
+      if(p.length < 4){ ignoradas++; return; }
+      var t = num(p[0]), v = num(p[1]), id = num(p[2]), tipo = norm(p[3]);
+      if(t === null || v === null || id === null){ ignoradas++; return; }
+      var k = String(id);
+      if(!grupos[k]){ grupos[k] = {}; ordem.push(k); }
+      if(tipo.indexOf('med') === 0){ grupos[k].t = t; grupos[k].m = v; }
+      else if(tipo.indexOf('sd') === 0){ grupos[k].s = v; if(grupos[k].t === undefined) grupos[k].tsd = t; }
+      else { ignoradas++; }
+    });
+
+    var out = ['tempo;media;sd'], incompletas = 0;
+    ordem.forEach(function(k){
+      var g = grupos[k];
+      if(g.m === undefined || g.s === undefined){ incompletas++; return; }
+      out.push(fmt(g.t) + ';' + fmt(g.m) + ';' + fmt(g.s - g.m));
+    });
+
+    if(!ordem.length){ sai.value = ''; setMsg(ent.value.trim() ? 'Nenhuma linha válida encontrada.' : '', !!ent.value.trim()); return; }
+    sai.value = out.join('\n');
+    var aviso = [];
+    if(incompletas) aviso.push(incompletas + ' tupla(s) sem par média/sd foram puladas');
+    if(ignoradas) aviso.push(ignoradas + ' linha(s) ignorada(s)');
+    setMsg(aviso.length ? aviso.join('; ') + '.' : (out.length - 1) + ' linhas geradas.', aviso.length > 0);
+  }
+
+  function copiar(){
+    if(!sai.value){ setMsg('Nada para copiar.', true); return; }
+    function ok(){ setMsg('Copiado.'); }
+    function fallback(){
+      sai.select();
+      try{ document.execCommand('copy') ? ok() : setMsg('Selecione o texto e copie com Ctrl+C.', true); }
+      catch(e){ setMsg('Selecione o texto e copie com Ctrl+C.', true); }
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(sai.value).then(ok, fallback);
+    } else { fallback(); }
+  }
+
+  document.getElementById('converter').addEventListener('click', converter);
+  document.getElementById('copiar').addEventListener('click', copiar);
+  document.getElementById('limpar').addEventListener('click', function(){ ent.value=''; sai.value=''; setMsg(''); ent.focus(); });
+  ent.addEventListener('input', converter);
+})();
+</script>
+</body>
+</html>
