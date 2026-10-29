@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
@@ -51,7 +51,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <main>
   <h1>Conversor média e SD</h1>
   <p class="lead">Cole as linhas no formato original (tempo; valor; id; média ou sd). A saída traz tempo, média e SD, com SD = valor “sd” − valor “média”.</p>
- 
+
   <div class="grid">
     <div>
       <label for="entrada">Entrada</label>
@@ -62,7 +62,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
       <textarea id="saida" spellcheck="false" readonly></textarea>
     </div>
   </div>
- 
+
   <div class="row">
     <div class="nome">
       <label for="nome">Nome do arquivo</label>
@@ -70,7 +70,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
       <span aria-hidden="true">.csv</span>
     </div>
   </div>
- 
+
   <div class="row">
     <button class="primary" id="converter" type="button">Converter</button>
     <button class="primary" id="baixar" type="button">Baixar CSV</button>
@@ -78,16 +78,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
     <button id="limpar" type="button">Limpar</button>
     <span id="msg" role="status"></span>
   </div>
- 
+
   <p class="hint">O tempo usado é o da linha “média”. A conversão acontece também enquanto você cola ou digita. Aceita vírgula ou ponto como decimal.</p>
 </main>
- 
+
 <script>
 (function(){
   var ent = document.getElementById('entrada');
   var sai = document.getElementById('saida');
   var msg = document.getElementById('msg');
- 
+
   function num(s){
     var n = parseFloat(String(s).trim().replace(/\s/g,'').replace(',', '.'));
     return isNaN(n) ? null : n;
@@ -97,11 +97,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
     return String(s).trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   }
   function setMsg(t, warn){ msg.textContent = t; msg.className = warn ? 'warn' : ''; }
- 
+
   function converter(){
     var linhas = ent.value.split(/\r?\n/);
     var grupos = {}, ordem = [], ignoradas = 0;
- 
+
     linhas.forEach(function(l){
       if(!l.trim()) return;
       var p = l.split(';');
@@ -114,14 +114,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
       else if(tipo.indexOf('sd') === 0){ grupos[k].s = v; if(grupos[k].t === undefined) grupos[k].tsd = t; }
       else { ignoradas++; }
     });
- 
+
     var out = ['tempo;media;sd'], incompletas = 0;
     ordem.forEach(function(k){
       var g = grupos[k];
       if(g.m === undefined || g.s === undefined){ incompletas++; return; }
       out.push(fmt(g.t) + ';' + fmt(g.m) + ';' + fmt(g.s - g.m));
     });
- 
+
     if(!ordem.length){ sai.value = ''; setMsg(ent.value.trim() ? 'Nenhuma linha válida encontrada.' : '', !!ent.value.trim()); return; }
     sai.value = out.join('\n');
     var aviso = [];
@@ -129,7 +129,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     if(ignoradas) aviso.push(ignoradas + ' linha(s) ignorada(s)');
     setMsg(aviso.length ? aviso.join('; ') + '.' : (out.length - 1) + ' linhas geradas.', aviso.length > 0);
   }
- 
+
   function copiar(){
     if(!sai.value){ setMsg('Nada para copiar.', true); return; }
     function ok(){ setMsg('Copiado.'); }
@@ -142,7 +142,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
       navigator.clipboard.writeText(sai.value).then(ok, fallback);
     } else { fallback(); }
   }
- 
+
   var baixarBtn = document.getElementById('baixar');
   var nomeIn = document.getElementById('nome');
   var downloads = null;
@@ -154,12 +154,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
       }, function(){ baixarBtn.disabled = true; });
     } else { baixarBtn.disabled = true; baixarBtn.title = 'Download indisponível aqui: use Copiar saída.'; }
   }catch(e){ baixarBtn.disabled = true; }
- 
+
   function nomeArquivo(){
     var n = nomeIn.value.trim().replace(/\.csv$/i,'').replace(/[\\/:*?"<>|]+/g,'_').trim();
     return (n || 'resultado') + '.csv';
   }
- 
+
   baixarBtn.addEventListener('click', function(){
     if(!sai.value){ setMsg('Nada para baixar. Cole os dados primeiro.', true); return; }
     if(!downloads){ setMsg('Download indisponível aqui. Use Copiar saída.', true); return; }
@@ -170,7 +170,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
         else setMsg('Não foi possível baixar. Use Copiar saída.', true);
       });
   });
- 
+
   document.getElementById('converter').addEventListener('click', converter);
   document.getElementById('copiar').addEventListener('click', copiar);
   document.getElementById('limpar').addEventListener('click', function(){ ent.value=''; sai.value=''; setMsg(''); ent.focus(); });
